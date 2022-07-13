@@ -1,11 +1,13 @@
 FROM python:3.10
 
-ADD src /api
+EXPOSE 8080
 
-WORKDIR /api
+ADD src/requirements.txt .
 
 RUN pip install -U pip && pip install -r requirements.txt
 
-EXPOSE 8080
+ADD src /api
+
+WORKDIR /api
 
 CMD gunicorn --bind 0.0.0.0:8080 wsgi:app

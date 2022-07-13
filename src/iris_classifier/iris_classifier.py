@@ -3,9 +3,14 @@ from sklearn.tree import DecisionTreeClassifier
 from flask_restful import Resource, reqparse, fields, marshal_with
 from data_models.classification_data_model import ClassificationData
 from data_models.db import db
+import logging
 import numpy as np
 import joblib
 import os
+
+logging.basicConfig(format='%(asctime)s|%(name)s|%(levelname)s - %(message)s', datefmt='%Y-%m-%d|%H:%M:%S')
+logger = logging.getLogger('iris_classifier')
+logger.setLevel(logging.INFO)
 
 class ModelTrainer(Resource):
     def get_training_dataset(self) -> tuple[np.ndarray, np.ndarray]:
@@ -21,6 +26,7 @@ class ModelTrainer(Resource):
         element in X.
         '''
         X, y = datasets.load_iris(return_X_y=True)
+        logger.info('Iris dataset retrieved from sklearn')
         return X, y
 
     def get(self, model_id: str):
@@ -35,7 +41,9 @@ class ModelTrainer(Resource):
         model = DecisionTreeClassifier()
         X, y = self.get_training_dataset()
         model.fit(X,y)
+        logger.info('Decicions Tree Classifier trained')
         model_location = f'models/{model_id}.joblib'
+        logger.info(f'Model saved in {model_location}')
         joblib.dump(model, model_location)
 
 class Classifier(Resource):
@@ -90,15 +98,16 @@ class Classifier(Resource):
                                                          petal_length=args['petal_length'],
                                                          petal_width=args['petal_width']).first()
         if result:
-            print('Retrieved result')
+            logger.info('Result retrieved from database')
             return result
 
-        print('New prediction')
         model_location = f'models/{args["model_id"]}.joblib'
         if not os.path.exists(model_location):
             raise Exception('Model file not found, call "train_classifier" with the corresponding model_id first.')
         
         model = joblib.load(model_location)
+        logger.info(f'Model {args["model_id"]} loaded')
+        logger.info(f'Executing new prediction')
         x = [ args[feature] for feature in ['sepal_length', 'sepal_width', 'petal_length', 'petal_width'] ]
         class_id = int(model.predict([x])[0])
         result = ClassificationData(model_id=args['model_id'],
@@ -110,4 +119,5 @@ class Classifier(Resource):
                                          predicted_class=self.get_class_name(class_id))
         db.session.add(result)
         db.session.commit()
+        logger.info('Prediction saved to database')
         return result

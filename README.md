@@ -56,4 +56,5 @@ através do modelo.
 - os modelos estão sendo persistidos dentro do container, o ideal seria em um local externo, como por exemplo na nuvem (AWS S3, GCP GCS, ...);
 - a base de dados também está sendo persistida dentro do container, o ideal seria ter uma base externa;
 - por simplicidade usei o Sqlite como banco de dados, mas para uma API em produção necessitando de baixa latência um banco NoSQL, como MongoDB talvez foi mais adequado;
+- configuração da base de dados está incompleta, para segurança seria preciso definir usuários e senhas e implementar alguma proteção de segredos para não expor as senhas;
 - por falta de tempo não criei teste unitários

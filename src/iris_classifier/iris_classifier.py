@@ -1,6 +1,7 @@
+import resource
 from sklearn import datasets
 from sklearn.tree import DecisionTreeClassifier
-from flask_restful import Resource, reqparse, fields, marshal_with
+from flask_restful import Resource, reqparse, fields, marshal
 from data_models.classification_data_model import ClassificationData
 from data_models.db import db
 import logging
@@ -47,16 +48,6 @@ class ModelTrainer(Resource):
         joblib.dump(model, model_location)
 
 class Classifier(Resource):
-    resource_fields = {
-        'model_id': fields.String,
-        'sepal_length': fields.Float,
-        'sepal_width': fields.Float,
-        'petal_length': fields.Float,
-        'petal_width': fields.Float,
-        'predicted_class_id': fields.Integer,
-        'predicted_class': fields.String
-    }
-
     def get_class_name(self, class_id: int) -> str:
         '''
         Gets the class name given the class id.
@@ -71,7 +62,6 @@ class Classifier(Resource):
         classes = {0: 'setosa', 1: 'versicolor', 2: 'virginica'}
         return classes[class_id]
 
-    @marshal_with(resource_fields)
     def post(self) -> dict:
         '''
         Prediction of the classification using model named `model_id`. The serialized model
@@ -92,6 +82,16 @@ class Classifier(Resource):
         args_parser.add_argument('petal_width', type=float, help='Petal width (required)', required=True)
         args = args_parser.parse_args()
 
+        resource_fields = {
+            'model_id': fields.String,
+            'sepal_length': fields.Float,
+            'sepal_width': fields.Float,
+            'petal_length': fields.Float,
+            'petal_width': fields.Float,
+            'predicted_class_id': fields.Integer,
+            'predicted_class': fields.String
+        }
+
         result = ClassificationData.query.filter_by(model_id=args['model_id'],
                                                          sepal_length=args['sepal_length'],
                                                          sepal_width=args['sepal_width'],
@@ -99,11 +99,12 @@ class Classifier(Resource):
                                                          petal_width=args['petal_width']).first()
         if result:
             logger.info('Result retrieved from database')
-            return result
+            return marshal(result, resource_fields)
 
         model_location = f'models/{args["model_id"]}.joblib'
         if not os.path.exists(model_location):
-            raise Exception('Model file not found, call "train_classifier" with the corresponding model_id first.')
+            logger.error('Model file not found')
+            return 'Model file not found, call train_classifier with the corresponding model_id first.', 404
         
         model = joblib.load(model_location)
         logger.info(f'Model {args["model_id"]} loaded')
@@ -120,4 +121,4 @@ class Classifier(Resource):
         db.session.add(result)
         db.session.commit()
         logger.info('Prediction saved to database')
-        return result
+        return marshal(result, resource_fields)
